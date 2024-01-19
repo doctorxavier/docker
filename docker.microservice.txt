@@ -1,0 +1,7 @@
+rm -Rf docker &&
+mkdir -p docker/root/Apps &&
+mkdir -p docker/root/opt/java &&
+cp -R /var/lib/jenkins/security/nhbk/* docker/root/Apps/ &&
+cp Dockerfile docker/ &&
+cp bcp-mbrk-inner-transfer-1.1.1-SNAPSHOT.jar docker/root/opt/java/ &&
+cd docker/

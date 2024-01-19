@@ -1,0 +1,17 @@
+sudo docker build --no-cache=true -t nginx-dev:1.13.1 .
+sudo docker run -dti -p 80:80 -p 443:443 --name nginx-dev nginx-dev:1.13.1
+sudo docker run -dti --network=host --name nginx-dev nginx-dev:1.13.1
+sudo docker exec -it nginx-dev /bin/sh
+
+nginx -t
+nginx -s reload
+ 
+curl -O http://dl-cdn.alpinelinux.org/alpine/v3.4/main/x86_64/APKINDEX.tar.gz
+
+cd /etc/ssl/private
+
+openssl genrsa -des3 -rand /dev/urandom -out server.key.encrypted 4096
+chmod 600 server.key.encrypted
+openssl req -config openssl.cnf -new -key server.key.encrypted -out server.csr
+openssl rsa -in server.key.encrypted -out server.key
+openssl x509 -req -days 365 -in server.csr -signkey server.key.encrypted -out server.crt

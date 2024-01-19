@@ -1,0 +1,11 @@
+server {
+listen 80;
+server_name localhost;
+access_log /var/log/nginx/jenkins _8080_proxypass_access.log;
+error_log /var/log/nginx/jenkins_8080_proxypass_access.log;
+
+location / {
+proxy_pass http://127.0.0.1:8080/;
+include /etc/nginx/proxy.conf;
+	}
+}

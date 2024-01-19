@@ -1,0 +1,192 @@
+user  nginx;
+worker_processes  1;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /run/nginx.pid;
+
+
+events {
+	worker_connections  1024;
+}
+
+http {
+	proxy_send_timeout 120;
+	proxy_read_timeout 300;
+	proxy_buffering    off;
+	tcp_nodelay        on;
+
+
+	include       /etc/nginx/mime.types;
+	default_type  application/octet-stream;
+
+	log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+	'$status $body_bytes_sent "$http_referer" '
+	'"$http_user_agent" "$http_x_forwarded_for"';
+
+	access_log  /var/log/nginx/access.log  main;
+
+	sendfile        on;
+	#tcp_nopush     on;
+
+	keepalive_timeout  65;
+
+	#gzip  on;
+	include /etc/nginx/conf.d/*.conf;
+
+	upstream jenkins {
+		server pnhrklnxd01:8080 fail_timeout=0;
+	}
+
+	server {
+		listen [::]:80;
+		listen      80;
+		server_name pnhrklnxd01;
+
+		#Redirect all non-https requests
+		rewrite ^ https://$host$request_uri? permanent;
+		#return 301 https://$host$requesr_uri;
+	}
+
+	server {
+		listen [::]:443 default_server ssl;
+		listen      443 default_server ssl;
+
+		server_name _;
+
+		ssl on;
+
+		# Certificate(s) and private key
+		ssl_certificate /etc/ssl/certs/bcpEverisTest.crt;
+		ssl_certificate_key /etc/ssl/certs/bcpEverisTest.key;
+
+		# openssl dhparam 4096 -out /etc/ssl/certs/dhparam.pem
+		ssl_dhparam /etc/ssl/certs/dhparam.pem;
+
+		ssl_protocols TLSv1.2 TLSv1.1 TLSv1;
+		ssl_prefer_server_ciphers on;
+		ssl_ciphers EECDH+ECDSA+AESGCM:EECDH+aRSA+AESGCM:EECDH+ECDSA+SHA512:EECDH+ECDSA+SHA384:EECDH+ECDSA+SHA256:ECDH+AESGCM:ECDH+AES256:DH+AESGCM:DH+AES256:RSA+AESGCM:!aNULL:!eNULL:!LOW:!RC4:!3DES:!MD5:!EXP:!PSK:!SRP:!DSS;
+
+		ssl_session_cache shared:TLS:2m;
+
+		# OCSP stapling
+		ssl_stapling on;
+		ssl_stapling_verify on;
+		resolver 8.8.8.8;
+
+		ignore_invalid_headers off;
+
+		location /static {
+			rewrite ^/static(.*) https://$host/jenkins/static$1 permanent;
+		}
+
+		location /adjuncts {
+			rewrite ^/adjuncts(.*) https://$host/jenkins/adjuncts$1 permanent;
+		}
+
+		location /login {
+			rewrite ^/login(.*) https://$host/jenkins/login$1 permanent;
+		}
+
+		location / {
+			root   /usr/share/nginx/html;
+			index  index.html index.htm;
+			proxy_pass  http://jenkins;
+			#proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+			#proxy_redirect off;
+
+			#proxy_set_header    Host            $host;
+			#proxy_set_header    X-Real-IP       $remote_addr;
+			#proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
+			#proxy_set_header    X-Forwarded-Proto https;
+		}
+
+		location ^~ /jenkins {
+			proxy_pass http://pnhrklnxd01:8080/;
+			# proxy_redirect              default;
+			proxy_redirect http:// https://;
+
+			sendfile off;
+			proxy_set_header   Host             $host:$server_port;
+			proxy_set_header   X-Real-IP        $remote_addr;
+			proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+			proxy_set_header X-Forwarded-Proto "https";
+			proxy_max_temp_file_size 0;
+
+
+			client_max_body_size       10m;
+			client_body_buffer_size    128k;
+
+			proxy_connect_timeout      90;
+			proxy_send_timeout         90;
+			proxy_read_timeout         90;
+
+			proxy_buffer_size          4k;
+			proxy_buffers              4 32k;
+			proxy_busy_buffers_size    64k;
+			proxy_temp_file_write_size 64k;
+		}
+
+		location  /nexus {
+			proxy_pass http://pnhrklnxd01:8081/nexus;
+			proxy_set_header Host $host;
+			proxy_set_header X-Real-IP $remote_addr;
+			proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+			proxy_set_header X-Forwarded-Proto "https";
+		}
+
+		location /sonarqube {
+
+			proxy_pass http://pnhrklnxd01:8082/sonarqube;
+
+			proxy_redirect http:// https://;
+
+			sendfile off;
+
+			proxy_set_header   Host             $host;
+			proxy_set_header   X-Real-IP        $remote_addr;
+			proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+			proxy_max_temp_file_size 0;
+
+			client_max_body_size       10m;
+			client_body_buffer_size    128k;
+
+			proxy_connect_timeout      90;
+			proxy_send_timeout         90;
+			proxy_read_timeout         90;
+
+			proxy_buffer_size          4k;
+			proxy_buffers              4 32k;
+			proxy_busy_buffers_size    64k;
+			proxy_temp_file_write_size 64k;
+		}
+
+		location /gitlab {
+			proxy_pass http://pnhrklnxd01:8084;
+			proxy_redirect off;
+			proxy_set_header Host $http_host;
+			proxy_set_header X-Real-IP $remote_addr;
+			proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+			proxy_set_header X-Forwarded-Proto $scheme;
+			proxy_set_header X-Forwarded-Protocol $scheme;
+			proxy_set_header X-Url-Scheme $scheme;
+		}
+
+
+		location /userContent {
+			#have nginx handle all the static requests to the userContent folder files
+			#note : This is the $JENKINS_HOME dir
+			root /var/lib/jenkins/;
+			if (!-f $request_filename){
+			#this file does not exist, might be a directory or a /**view** url
+			rewrite (.*) /$1 last;
+			break;
+			}
+			sendfile on;
+		}
+
+
+		# Set HSTS to 365 days
+		add_header Strict-Transport-Security 'max-age=31536000; includeSubDomains';
+	}
+	
+}

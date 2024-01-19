@@ -1,0 +1,49 @@
+cd /var/lib/jenkins/
+rm -Rf java/*
+wget --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie"  http://download.oracle.com/otn-pub/java/jdk/8u92-b14/jdk-8u92-linux-x64.tar.gz
+mkdir -p java
+mv jdk-8u92-linux-x64.tar.gz java/
+cd java/
+tar zxvf jdk-8u92-linux-x64.tar.gz
+rm jdk-8u92-linux-x64.tar.gz
+
+cd /var/lib/jenkins/security/java/
+wget --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jce/8/jce_policy-8.zip
+unzip jce_policy-8.zip
+rm jce_policy-8.zip
+
+rm -Rf docker &&
+mkdir -p docker/root/etc/apt/apt.conf.d &&
+mkdir -p docker/root/etc/apt &&
+mkdir -p docker/root/usr/local/share/ca-certificates/datapower &&
+mkdir -p docker/root/usr/lib/jvm &&
+mkdir -p docker/root/usr/lib/jvm/jdk1.8.0_92/jre/lib/ext/ &&
+mkdir -p docker/root/Apps &&
+cp -R /var/lib/jenkins/java/* docker/root/usr/lib/jvm/
+cp -R /var/lib/jenkins/security/certs/* docker/root/usr/local/share/ca-certificates/datapower/ &&
+cp /var/lib/jenkins/security/java/java.security docker/root/usr/lib/jvm/jdk1.8.0_92/jre/lib/security/ &&
+cp -R /var/lib/jenkins/security/java/UnlimitedJCEPolicyJDK8/*.jar docker/root/usr/lib/jvm/jdk1.8.0_92/jre/lib/security/ &&
+cp  /var/lib/jenkins/security/java/bcprov-ext-jdk15on-154.jar docker/root/usr/lib/jvm/jdk1.8.0_92/jre/lib/ext/ &&
+cp -R /var/lib/jenkins/security/nhbk/* docker/root/Apps/ &&
+cp /var/lib/jenkins/debian/70debconf docker/root/etc/apt/apt.conf.d/ &&
+cp /var/lib/jenkins/debian/sources.list docker/root/etc/apt/ &&
+cp Dockerfile docker/ &&
+cp bcp-mbrk-inner-transfer-1.1.1-SNAPSHOT.jar docker/ &&
+cd docker/
+sudo docker build --no-cache=true -t bcp-mbrk-inner-transfer:1.1.1 . &&
+
+
+sudo docker build -t bcp-mbrk-inner-transfer:1.1.1 .
+
+ssh -t -t localhost "cd $WORKSPACE/docker/ && sudo docker build -t bcp-mbrk-inner-transfer:1.1.1 ." &&
+
+sudo docker tag bcp-mbrk-inner-transfer:1.1.1 localhost:5000/bcp-mbrk-inner-transfer:1.1.1 &&
+sudo docker push localhost:5000/bcp-mbrk-inner-transfer:1.1.1 &&
+
+
+
+ssh -tt jenkins@pmbrklnxd03 'sudo docker stop bcp-mbrk-inner-transfer' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker rm bcp-mbrk-inner-transfer' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker rmi bcp-mbrk-inner-transfer:1.1.1' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker pull pnhrklnxd01:5000/bcp-mbrk-inner-transfer:1.1.1' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker run -d --name bcp-mbrk-inner-transfer bcp-mbrk-inner-transfer:1.1.1'

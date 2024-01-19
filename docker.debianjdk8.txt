@@ -1,0 +1,47 @@
+rm -Rf docker &&
+mkdir -p docker/root/etc/apt/apt.conf.d &&
+mkdir -p docker/root/etc/apt &&
+mkdir -p docker/root/usr/local/share/ca-certificates/datapower &&
+mkdir -p docker/root/usr/lib/jvm/jdk1.8.0_92/jre/lib/security &&
+mkdir -p docker/root/Apps &&
+mkdir -p docker/root/opt/java &&
+cp -R /var/lib/jenkins/security/certs/* docker/root/usr/local/share/ca-certificates/datapower/ &&
+cp /var/lib/jenkins/security/java/java.security docker/root/usr/lib/jvm/jdk1.8.0_92/jre/lib/security/ &&
+cp -R /var/lib/jenkins/security/nhbk/* docker/root/Apps/ &&
+cp /var/lib/jenkins/debian/70debconf docker/root/etc/apt/apt.conf.d/ &&
+cp /var/lib/jenkins/debian/sources.list docker/root/etc/apt/ &&
+cp Dockerfile docker/ &&
+cp bcp-mbrk-inner-transfer-1.1.1-SNAPSHOT.jar docker/root/opt/java/ &&
+cd docker/
+sudo docker build --no-cache=true -t bcp-mbrk-inner-transfer:1.1.1 . &&
+
+
+sudo docker build -t bcp-mbrk-inner-transfer:1.1.1 .
+
+ssh -t -t localhost "cd $WORKSPACE/docker/ && sudo docker build -t bcp-mbrk-inner-transfer:1.1.1 ." &&
+
+sudo docker tag bcp-mbrk-inner-transfer:1.1.1 localhost:5000/bcp-mbrk-inner-transfer:1.1.1 &&
+sudo docker push localhost:5000/bcp-mbrk-inner-transfer:1.1.1 &&
+
+
+
+ssh -tt jenkins@pmbrklnxd03 'sudo docker stop bcp-mbrk-inner-transfer' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker rm bcp-mbrk-inner-transfer' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker rmi bcp-mbrk-inner-transfer:1.1.1' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker pull pnhrklnxd01:5000/bcp-mbrk-inner-transfer:1.1.1' &&
+ssh -tt jenkins@pmbrklnxd03 'sudo docker run -d --name bcp-mbrk-inner-transfer bcp-mbrk-inner-transfer:1.1.1'
+
+
+sudo docker build -t debian-java:8-jdk .
+
+
+
+EXPOSE 8280
+ENTRYPOINT ["java", "-Djava.awt.headless=true", "-Dfile.encoding=UTF-8", "-Xms256m", "-Xmx512m", "-XX:NewSize=256m", \
+        "-XX:MaxNewSize=512m", "-XX:MaxMetaspaceSize=256m", "-XX:+UseG1GC", "-XX:+DisableExplicitGC", \
+        "-jar", "-Dserver.port=8280", "bcp-mbrk-inner-transfer-1.1.1-SNAPSHOT.jar"]
+		
+EXPOSE 8280
+ENTRYPOINT ["java", "-jar", "-Dserver.port=8280", "bcp-mbrk-inner-transfer-1.1.1-SNAPSHOT.jar"]
+
+bcp-api-starter-0.2.1-SNAPSHOT.jar

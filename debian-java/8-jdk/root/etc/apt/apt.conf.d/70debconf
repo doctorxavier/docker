@@ -1,0 +1,10 @@
+// Pre-configure all packages with debconf before they are installed.
+// If you don't like it, comment it out.
+DPkg::Pre-Install-Pkgs {"/usr/sbin/dpkg-preconfigure --apt || true";};
+
+APT::Install-Recommends "0";
+APT::Install-Suggests "0";
+
+Acquire::http::proxy "http://10.80.193.115:8080/";
+Acquire::https::proxy "https://10.80.193.115:8080/";
+Acquire::ftp::proxy "http//10.80.193.115:8080/";
